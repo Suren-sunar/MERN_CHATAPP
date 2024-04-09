@@ -1,5 +1,5 @@
 import conversation from "../Model/conversation.model.js";
-import message from "../Model/message.model.js";
+import Message from "../Model/message.model.js";
 
 export const sendMessage = async (req, res) => {
   try {
@@ -17,7 +17,7 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    const newMessage = new message({
+    const newMessage = new Message({
       senderId,
       receiverId,
       message,
@@ -27,8 +27,12 @@ export const sendMessage = async (req, res) => {
       Conversation.message.push(newMessage._id);
     }
 
-    await Conversation.save();
-    await newMessage.save();
+    // await Conversation.save();
+    // await newMessage.save();
+
+
+    // this will run in parallel
+    await Promise.all([Conversation.save(), newMessage.save()]);
 
     res.status(201).json(newMessage);
   } catch (error) {
@@ -36,3 +40,27 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+
+export const getMessage = async (req, res)=>{
+  try{
+
+    const {id: userToChatID} = req.params
+    const senderId = req.user._id
+
+    const Conversation = await conversation.findOne({
+      participates :{$all : [senderId, userToChatID]}
+    }).populate("message") //Not reference but actuall message
+    
+    if(!Conversation) return res.status(200).json([])
+
+      const message = Conversation.message
+    
+    
+    res.status(200).json(message)
+
+  }catch (error) {
+    console.log("Error in getMessage controller", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+}
